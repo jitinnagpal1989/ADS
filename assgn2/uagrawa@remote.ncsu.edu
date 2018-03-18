@@ -1,0 +1,378 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#define max_no_of_pairs 10000
+
+void display();
+void add_record(int key, char* lastname, char* firstname, char* major, char* key_string);
+void del_record(int key);
+void find_record(int key);
+int binarysearch(int target, int left, int right);
+int first_fit(int size);
+int compare_best(const void *a, const void *b);
+int compare_worst(const void *a, const void *b);
+
+
+
+
+//predefined structure of index and hole
+typedef struct index_S {
+	int key; /* Record's key */
+	long off; /* Record's offset in file */
+	}index_S;
+
+typedef struct avail_S{ 
+	int size; /* Hole's size */ 
+	long off; /* Hole's offset in file */ 
+	} avail_S;
+
+//these will hold index.bin and avail.bin file contents
+index_S index_list[10000];
+avail_S avail_list[10000];
+
+
+FILE *output_avail_file;
+FILE *output_index_file;
+FILE *output_student_file;
+int index_count=0;
+int avail_count=0;
+const char *order;
+	
+int main(int argc, const char *argv[]){
+	if(argc!=3){
+		printf("Invalid number of arguments");
+		exit(-1);
+	}
+
+	order = argv[1];
+
+
+	if( strcmp(order,"--first-fit") != 0 && strcmp(order,"--best-fit") != 0 && strcmp(order,"--worst-fit") != 0 )
+   {
+      printf("Invalid argument\n");
+      exit(-1);
+   }
+
+	const char *student_file_name = argv[2];
+
+	if ( ( output_student_file = fopen( student_file_name, "r+b" ) ) == NULL ) {
+	 output_student_file = fopen( "student.db", "w+b" ); 
+	 output_avail_file = fopen("avail.bin","w+b");
+	 output_index_file = fopen("index.bin","w+b");
+	} 
+
+	if((output_index_file = fopen("index.bin","r+b")) == NULL){
+		printf("ERROR: Index file doesn't exist\n");
+      	exit(-1);
+	}
+	if((output_avail_file = fopen("avail.bin","r+b")) == NULL){
+		printf("ERROR: Avail file doesn't exist\n");
+      	exit(-1);
+	}
+
+
+	fseek(output_index_file,0,SEEK_SET);
+	index_S index_obj;
+
+	while(fread(&index_obj, sizeof(index_S),1,output_index_file)==1){
+		index_list[index_count++] = index_obj;
+	}
+	fclose(output_index_file);
+
+	avail_S hole;
+	while(fread(&hole, sizeof(avail_S),1,output_avail_file)==1){
+		avail_list[avail_count++] = hole;
+	}
+
+	fclose(output_avail_file);
+	char user_input[500];
+	char user_input_copy[500];
+
+
+	while(1){
+
+		fgets(user_input,100,stdin);
+		strcpy(user_input_copy,user_input);
+		char* str_token = strtok(user_input_copy," | \n");
+
+		if(str_token!=NULL){
+			if(strcmp(str_token,"end")==0){
+			/*writing index and availability file*/
+			output_avail_file = fopen("avail.bin","wb");
+			fseek(output_avail_file,0,SEEK_SET);
+			for(int i=0;i<=avail_count;i++)
+		    {
+		    	fwrite(&avail_list[i],sizeof(struct avail_S),1,output_avail_file);
+		    }
+		    fclose(output_avail_file);
+
+
+			output_index_file = fopen("index.bin","wb");
+			fseek(output_index_file,0,SEEK_SET);
+			for(int i=0;i<=index_count;i++){
+				fwrite(&index_list[i],sizeof(struct index_S),1,output_index_file);
+			}
+			// fwrite(index_list,sizeof(index_S),index_count,output_index_file);
+			fclose(output_index_file);
+
+			fclose(output_student_file);
+
+			display(); //display index and availability files contents
+			exit(0);
+
+			}else if(strcmp(str_token,"del")==0){
+				str_token = strtok(NULL," \n");
+				int key=0;
+				if(str_token!=NULL){
+					key = atoi(str_token);
+				}
+				if(key!=0)
+					del_record(key);
+			}else if(strcmp(str_token,"find")==0){
+				str_token = strtok(NULL," \n");
+				int key=0;
+				if(str_token!=NULL){
+					key = atoi(str_token);
+				}
+				if(key!=0)
+					find_record(key);
+			}else if(strcmp(str_token,"add")==0){
+				int size = strlen(str_token) + sizeof(int)-1;
+				str_token = strtok(NULL," \n");
+				int key=0;
+				if(str_token!=NULL){
+					key = atoi(str_token);
+				}
+				if(key==0){
+					//do nothing
+				}else{
+					int i=0;
+					char* params[4];
+					while(i<4){
+						str_token = strtok(NULL," |");
+						if(str_token==NULL){
+							printf("invalid record entered\n");
+							exit(-1);
+						}
+						params[i++] = str_token;
+					}
+					if(i!=4){
+						printf("invalid record entered\n");
+						exit(-1);
+					}
+					add_record(key,params[0],params[1],params[2],params[3]);
+				}
+			}else{
+				printf("Invalid command entered, exiting...\n");
+				exit(-1);
+			}
+
+		}
+	}
+}
+
+void display(){
+	//displaying index contents
+	printf("Index Contents:\n");				
+	for(int i=0;i<index_count;i++)		
+		printf("key = %d, offset = %ld\n",index_list[i].key, index_list[i].off);	
+
+	int total_holes_space=0;
+	printf("Holes:\n");
+	for(int i=0;i<avail_count;i++){
+		total_holes_space += avail_list[i].size;
+		printf("size = %d, offset = %ld\n",avail_list[i].size, avail_list[i].off );	
+	}
+	printf("Total space occupied by holes=%d\n",total_holes_space);
+	printf("Total number of holes=%d\n",avail_count);
+}
+
+
+void add_record(int key, char* lastname, char* firstname, char* major, char* key_string){
+	// printf("%s\n",firstname );
+	// printf("%s\n",lastname );
+	// printf("%s\n",major );
+	// printf("%s\n",key_string );
+
+	// printf("add_record function\n");
+	//check if key already exists
+	for(int i=0;i<index_count;i++){
+		if(index_list[i].key==key){
+			printf("A record with same key already exists, exiting..\n");
+			printf("Record with SID=%d exists\n", key); 
+			// exit(-1);
+			return;
+		}
+	}
+
+	//preparing record string
+	char* record = (char*)malloc(strlen(lastname)+strlen(firstname) + strlen(major) + strlen(key_string) +1);
+	strcpy(record, key_string);
+	strcat(record,"|");
+	strcat(record,lastname);
+	strcat(record,"|");
+	strcat(record,firstname);
+	strcat(record,"|");
+	strcat(record,major);
+	int size = strlen(record);
+
+	int avail_index=-1;
+	long offset;
+
+	if(avail_count>=0){
+		if(strcmp(order, "--first-fit")==0){
+			avail_index = first_fit(size);
+		}else if(strcmp(order,"--best-fit")==0){
+			qsort(avail_list,avail_count, sizeof(struct avail_S), compare_best);
+			avail_index = first_fit(size);
+		}else if(strcmp(order, "--worst-fit")==0){
+			qsort(avail_list,avail_count, sizeof(struct avail_S), compare_worst);	
+			avail_index = first_fit(size);
+		}
+	}
+
+	index_count++;
+	index_list[index_count].key=key;
+	if(avail_count>=0){
+		if(avail_index==-1){
+			offset=index_list[index_count-1].off+size;
+		}else{
+			offset = avail_list[avail_index].off;
+			for(int i=avail_index;i<avail_count;i++){
+				avail_list[i].size = avail_list[i+1].size;
+				avail_list[i].off = avail_list[i+1].off;
+			}
+			avail_count--;
+		}
+	}else if(index_count==0){
+		offset=0;
+	}else{
+		fseek(output_student_file,0,SEEK_END);
+		offset = ftell(output_student_file);
+	} 
+
+	int buffer[1] = {size};
+	fwrite(buffer,sizeof(int),1,output_student_file);
+	fwrite(record,sizeof(char),size,output_student_file);
+
+}
+
+void del_record(int key){
+	// printf("delete record function\n");
+	long offset = -1;
+	for(int i=0;i<=index_count;i++){
+		if(index_list[i].key==key){
+			offset = index_list[i].off;
+
+			for(int j=i;j<index_count;j++){
+				index_list[i].key = index_list[i+1].key;
+				index_list[i].off = index_list[i+1].off;
+			}
+			index_count--;
+			break;
+		}
+	}
+	if(offset==-1){
+		printf("Record doesn't exist, exiting..\n");
+		exit(-1);
+	}else{
+		fseek(output_student_file, offset, SEEK_SET);
+		int size=0;
+		fread(&size, sizeof(int),1,output_student_file);
+		avail_count++;
+		avail_list[avail_count].off=offset;
+		avail_list[avail_count].size = size+sizeof(int);
+	}
+}
+
+
+void find_record(int key){
+	// printf("find record function\n");
+	int index = binarysearch(key,0,index_count-1);
+	if(index==-1){
+		printf("No record with SID=%d exists\n",key);
+		// exit(-1);
+	}else{
+		index_S record = index_list[index];
+		fseek(output_student_file, record.off, SEEK_SET);
+		int size=0;
+		fread(&size, sizeof(int),1,output_student_file);
+		char* buff = (char*)malloc(size+1);
+		fread(buff, 1,size, output_student_file);
+		buff[size] = '\0';
+		printf("%s\n",buff );
+		free(buff);
+	}
+}
+
+int binarysearch(int target, int left, int right)
+{
+   int mid;
+	if(left>right)
+	{
+		return -1;
+	}
+	mid= left+ (right -left)/2;
+
+	if(target==index_list[mid].key)
+	{
+		return mid;
+	}
+	else
+	{
+		if(target<index_list[mid].key)
+		{
+		  return binarysearch(target,left,mid-1);
+		}
+
+		else
+		{
+		  return binarysearch(target,mid+1,right);
+		}
+	}
+}
+
+int first_fit(int size )
+{
+	int index=-1, new_hole_size;
+		for(int i=0;i<=avail_count;i++)
+		{
+			if(avail_list[i].size>=size)
+			{
+				index=i;
+				new_hole_size=avail_list[index].size - size;
+				if(new_hole_size>0)
+				{
+					avail_count++;
+					avail_list[avail_count].size= new_hole_size;
+					avail_list[avail_count].off=avail_list[index].off+ size;
+				}
+				break;
+			}
+
+
+		}
+		return index;
+}
+
+int compare_best(const void *a, const void *b)
+{
+	avail_S *avail_a=(avail_S *) a;
+	avail_S *avail_b=(avail_S *) b;
+	
+	return avail_a->size-avail_b->size;
+
+}
+
+
+int compare_worst(const void *a, const void *b)
+{
+	avail_S *avail_a=(avail_S *) a;
+	avail_S *avail_b=(avail_S *) b;
+	
+	return avail_b->size-avail_a->size;
+
+}
+
+

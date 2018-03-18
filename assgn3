@@ -1,0 +1,24 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<limits.h>
+#include<sys/time.h>
+
+int main(int argc, char* argv[]){
+	int mode = 0;
+    int status = 0;
+    char *merge_method = argv[1];
+    char *inputfile_name = argv[2];
+    char *outputfile_name = argv[3];
+
+    char *seekfile_name = argv[3];
+    
+    if (strcmp(search_mode,"--mem-lin") == 0)
+        mode = 1;
+    else if (strcmp(search_mode,"--mem-bin") == 0)
+        mode = 2;
+    else if (strcmp(search_mode,"--disk-lin") == 0)
+        mode = 3;
+    else if (strcmp(search_mode,"--disk-bin") == 0)
+        mode = 4;
+}
