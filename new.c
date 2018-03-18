@@ -50,7 +50,7 @@ int main(int argc, const char *argv[]){
 //        exit(-1);
 //    }
     
-    order = "--best-fit";//argv[1];
+    order = "--worst-fit";//argv[1];
     
     
     if( strcmp(order,"--first-fit") != 0 && strcmp(order,"--best-fit") != 0 && strcmp(order,"--worst-fit") != 0 )
@@ -104,7 +104,7 @@ int main(int argc, const char *argv[]){
         if(str_token!=NULL){
             if(strcmp(str_token,"end")==0){
                 /*writing index and availability file*/
-                output_avail_file = fopen("avail.bin","wb");
+                output_avail_file = fopen("/Users/unnatiagrawal/Documents/ads/avail.bin","wb");
                 fseek(output_avail_file,0,SEEK_SET);
                 for(i=0;i<=avail_count;i++)
                 {
@@ -113,9 +113,10 @@ int main(int argc, const char *argv[]){
                 fclose(output_avail_file);
                 
                 
-                output_index_file = fopen("index.bin","wb");
+                output_index_file = fopen("/Users/unnatiagrawal/Documents/ads/index.bin","wb");
                 fseek(output_index_file,0,SEEK_SET);
                 for( i=0;i<=index_count;i++){
+//                    printf("address = %d",&index_list[i]);
                     fwrite(&index_list[i],sizeof(struct index_S),1,output_index_file);
                 }
                 // fwrite(index_list,sizeof(index_S),index_count,output_index_file);
@@ -144,12 +145,12 @@ int main(int argc, const char *argv[]){
                     del_record(key);
             }else if(strcmp(str_token,"find")==0){
                 str_token = strtok(NULL," \n");
-                printf("%s",str_token);
+//                printf("%s",str_token);
                 int key=0;
                 if(str_token!=NULL){
                     key = atoi(str_token);
                 }
-                printf("%d",key);
+//                printf("%d",key);
                 if(key!=0)
                     find_record(key);
             }else if(strcmp(str_token,"add")==0){
@@ -180,7 +181,8 @@ int main(int argc, const char *argv[]){
                     add_record(key,params[0],params[1],params[2],params[3]);
                 }
             }else{
-//                printf("Invalid command entered, exiting...\n");
+//
+                printf("Invalid command entered, exiting...\n");
                 exit(-1);
             }
             
@@ -209,9 +211,9 @@ void display(){
         total_holes_space += avail_list[i].size;
         printf("size=%d: offset=%ld\n",avail_list[i].size, avail_list[i].off );
     }
-//    printf("Holes space=%d\n",total_holes_space);
+//    printf("Hole space=%d\n",total_holes_space);
     printf("Number of holes: %d\n",avail_count);
-    printf("Holes space: %d\n",total_holes_space);
+    printf("Hole space: %d\n",total_holes_space);
 
 }
 
@@ -226,7 +228,7 @@ void add_record(int key, char* key_string, char* lastname, char* firstname, char
     //check if key already exists
     for(i=0;i<index_count;i++){
         if(index_list[i].key==key){
-            printf("A record with same key already exists, exiting..\n");
+//            printf("A record with same key already exists, exiting..\n");
             printf("Record with SID=%d exists\n", key);
             // exit(-1);
             return;
@@ -234,8 +236,8 @@ void add_record(int key, char* key_string, char* lastname, char* firstname, char
     }
     
     //preparing record string
-    char* record = (char*)malloc(strlen(lastname)+strlen(firstname) + strlen(major) + strlen(key_string) +20);
-    
+    char* record = (char*)malloc(strlen(lastname)+strlen(firstname) + strlen(major) + strlen(key_string));
+//    memset(record,0,strlen(lastname)+strlen(firstname) + strlen(major) + strlen(key_string));
     int size = sprintf (record, "%s|%s|%s|%s", key_string, lastname, firstname, major);
     
     // strcpy(record,key);
@@ -291,7 +293,7 @@ void add_record(int key, char* key_string, char* lastname, char* firstname, char
     //printf("%d\n", size);
     fwrite(&size,sizeof(int),1,output_student_file);
     fwrite(record,sizeof(char),strlen(record),output_student_file);
-//    printf("%s",record);
+    printf(" Printintg record %s \n",record);
 }
 
 void del_record(int key){
@@ -311,7 +313,7 @@ void del_record(int key){
         }
     }
     if(offset==-1){
-        printf("No record with SID=%d exist\n",key);
+        printf("No record with SID=%d exists\n",key);
 //        exit(-1);
     }else{
         fseek(output_student_file, offset, SEEK_SET);
@@ -336,10 +338,11 @@ void find_record(int key){
         fseek(output_student_file, record.off, SEEK_SET);
         int size=0;
         fread(&size, sizeof(int),1,output_student_file);
-        char* buff = (char*)malloc(size+1);
-        fread(buff, 1,size, output_student_file);
+        char* buff = (char*)malloc(size-sizeof(int));
+//        memset(buff,0,size-sizeof(int));
+        fread(buff, 1,size-sizeof(int), output_student_file);
 //        printf("%s",buff);
-        buff[size] = '\0';
+        buff[size-sizeof(int)] = '\0';
         printf("%s\n",buff );
         free(buff);
     }
